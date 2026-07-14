@@ -1,0 +1,18 @@
+{
+  "schema_version": 2,
+  "enabled": true,
+  "provider": "gmail",
+  "sender": "{{GMAIL_SENDER}}",
+  "recipient": "{{GMAIL_RECIPIENT}}",
+  "subject_prefix": "[Codex AGENTS Loop]",
+  "language": "zh-CN",
+  "send_events": ["baseline", "audit_complete", "audit_revision_required", "audit_rejected", "failure", "installation_complete"],
+  "send_no_update": false,
+  "attach_files": false,
+  "include_complete_evaluation": false,
+  "include_full_diff": false,
+  "include_full_original": false,
+  "include_full_candidate": false,
+  "secret_scan_required": true,
+  "verify_sent": true
+}

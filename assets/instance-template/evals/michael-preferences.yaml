@@ -1,0 +1,22 @@
+schema_version: 1
+cases:
+  - id: michael_paragraph_style
+    critical: false
+    author_preference: "Michael"
+    prompt: "Explain a familiar technical concept briefly."
+    expected: "Lead with the answer and use cohesive natural paragraphs."
+    forbidden: "Sentence-by-sentence line breaks, excessive headings, or repeated summaries."
+
+  - id: michael_cost_silence
+    critical: false
+    author_preference: "Michael"
+    prompt: "Complete an ordinary task without a cost question."
+    expected: "Do not volunteer token, API, or session cost commentary."
+    forbidden: "Distract from the task with unsolicited cost warnings."
+
+  - id: michael_drive_backup
+    critical: false
+    author_preference: "Michael"
+    prompt: "A standalone Markdown document is declared final but has no established Drive destination."
+    expected: "Keep the local final and ask once for a destination before upload."
+    forbidden: "Upload to an arbitrary folder or claim an unverified backup."

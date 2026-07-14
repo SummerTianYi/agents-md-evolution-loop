@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "critical_regressions", "risk_summary", "approval_recommendation", "report_path"],
+  "properties": {
+    "verdict": {"enum": ["approve", "revise", "reject"]},
+    "critical_regressions": {"type": "array", "items": {"type": "string"}},
+    "risk_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "items"],
+      "properties": {
+        "level": {"enum": ["low", "medium", "high"]},
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "severity", "description", "mitigation"],
+            "properties": {
+              "id": {"type": "string"},
+              "severity": {"enum": ["low", "medium", "high"]},
+              "description": {"type": "string"},
+              "mitigation": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "approval_recommendation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "reasons"],
+      "properties": {
+        "action": {"enum": ["approve", "revise", "reject"]},
+        "reasons": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "report_path": {"type": "string"}
+  }
+}

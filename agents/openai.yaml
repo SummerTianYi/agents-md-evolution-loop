@@ -1,0 +1,4 @@
+interface:
+  display_name: "AGENTS.md Evolution"
+  short_description: "检测 Codex 新模型并生成可审批的 AGENTS.md 改进方案"
+  default_prompt: "使用 $agents-md-evolution 初始化或运行我的 AGENTS.md 演进审计。"

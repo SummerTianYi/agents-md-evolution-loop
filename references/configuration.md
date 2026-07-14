@@ -1,0 +1,52 @@
+# 首次解包与配置清单
+
+Agent 在初始化前必须逐项向使用者展示本清单。每项都应说明检测值或默认值、用途、是否可调整，以及改变安全项可能带来的影响。不得以“保持默认”为由省略展示。
+
+## 环境与路径
+
+- `codex_home`：自动检测 `$CODEX_HOME`，未设置时使用 `~/.codex`。可调整。
+- `active_agents_path`：默认检测为 `<codex_home>/AGENTS.md`，必须确认文件存在。可调整。
+- `instance_root`：运行状态、报告和候选的独立目录，推荐 `<codex_home>/agents-md-evolution-instance`。可调整，不应放入 Skill 包内。
+- `codex_executable`：自动检测 `codex` 命令的真实路径。可调整。
+- `timezone`：从本机环境和系统时区数据库自动检测并展示；不得沿用打包者时区，也不要求使用者手填。检测失败时阻止创建并报告原因。
+
+## Gmail 与报告
+
+- `provider`：默认且当前官方路径为 `gmail`。
+- `sender`：必须由当前使用者填写，并与已连接的 Gmail 账号核对；不得使用示例或打包者邮箱。
+- `recipient`：必须由当前使用者填写。可以与发件人相同，但不可静默假设。
+- `language`：推荐默认 `zh-CN`，邮件主题、正文、审计和安装报告均使用简体中文；模型 ID、命令和文件名可保留英文。属于可调整的呈现偏好，但修改时需同步报告模板和提示。
+- `subject_prefix`：默认 `[Codex AGENTS Loop]`。可调整。
+- `send_events`：默认发送 baseline、审计完成、需要修订、审计拒绝、失败和安装完成；`NO_UPDATE` 默认不发送。可调整。
+- `include_complete_evaluation`、`include_full_diff`、`include_full_original`、`include_full_candidate`：默认关闭，邮件优先呈现 schema 约束的 JSON 风险与审批摘要；完整内容只保留在本地 Run 目录。可由使用者明确开启，但秘密扫描拥有更高优先级。
+- `secret_scan_required`、`verify_sent`、`attachments=false`：安全底线。不得静默关闭；报告不得附带活动文件或候选文件。
+
+## 定时与模型执行
+
+- `schedule`：推荐默认工作日 10:00 和 17:00。属于可调整的运行偏好，创建自动化前必须展示当地时区下的实际时间。
+- `model_selection`：由 OpenAI 官方 Models 页面确定当前 GPT Sol 目标，再由本机 `codex debug models` 精确验证该目标可执行。CLI 不可执行官方目标时必须失败并报告，不得静默回退到旧模型。
+- `author_reasoning_effort`、`reviewer_reasoning_effort`：推荐 `max`，两者必须一致且模型目录必须声明支持；不可静默降级。可由使用者明确调整。
+- `fresh_sessions=true`、`independent_reviewer=true`、`reviewer_may_edit_candidate=false`：审计完整性底线。
+- `max_pending_candidates_per_model=1`：默认每个模型最多一个待审批候选。可调整，但不建议增加。
+- `simulation_trigger_enabled=false`：仅测试时临时开启；模拟事件必须显著标注，不能宣称 OpenAI 真正发布了新模型。
+
+## 审批、安装与安全
+
+- `auto_install=false`：安全底线。定时任务不得自动覆盖全局 `AGENTS.md`。
+- `approval_channel=codex`：默认只接受 Codex 任务中带 Run ID 的明确批准；邮件回复不构成批准。可扩展渠道，但必须有等价身份与范围验证。
+- `approval_phrase`：默认 `批准安装 run <Run ID>`。可调整措辞，但 Run ID 必须明确。
+- `active_sha_check=true`、`timestamped_backup=true`、`post_install_verification=true`：安装安全底线。
+- `official_sources`：默认只使用 OpenAI 官方 Codex Models 与 Changelog 页面。可更新官方 URL，不得用非官方来源替代模型发布事实。
+
+## 意图与个人偏好
+
+`neutral` 配置只启用通用安全、授权、最小改动和验证规则。`michael` 配置在此基础上增加原作者 Michael 的偏好。Agent 必须逐项说明这些只是可参考的个人习惯，可保留、修改或删除：
+
+- 默认使用完整连贯的自然段，减少逐句换行、无必要标题、列表、表格、粗体和重复总结。
+- 先给结论，语气自然直接，篇幅与任务复杂度匹配。
+- 除非使用者主动询问，否则不主动讨论 token、API 费用或会话成本。
+- 对使用者明确认定的最终独立 Markdown 文档，按既有授权与目标目录检查 Google Drive 备份；仓库文件不自动上传。
+- 从第一性原理理解真实目标，仅在关键歧义、授权或重大风险会改变结果时询问。
+- 把复杂、可复用工作流放入 Skill，避免持续膨胀全局 `AGENTS.md`。
+
+初始化后，Agent 还应扫描使用者现有 `AGENTS.md` 和提供的偏好文件，列出新发现的所有行为偏好及冲突，不得只检查上述示例。

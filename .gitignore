@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+work/
+runs/
+reports/
+backups/
+logs/
+delivery-log.json
+agents-md-evolution-instance/
+.env
