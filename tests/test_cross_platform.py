@@ -6,6 +6,7 @@ import os
 import sys
 import tempfile
 import unittest
+from email.message import Message
 from pathlib import Path
 from unittest.mock import patch
 
@@ -77,6 +78,15 @@ class CrossPlatformTests(unittest.TestCase):
                 run_loop.codex_exec("codex", "gpt-test", root, "full prompt", root / "output.md", root / "stdout.log", root / "stderr.log", "high")
             self.assertEqual(calls[0][0][-1], "-")
             self.assertEqual(calls[0][1]["input"], "full prompt")
+
+    def test_complete_author_artifacts_can_resume_review(self) -> None:
+        run_loop = load_run_loop()
+        with tempfile.TemporaryDirectory() as temporary:
+            run_dir = Path(temporary)
+            self.assertFalse(run_loop.author_artifacts_ready(run_dir))
+            for name in ("candidate.md", "changes.diff", "evaluation-draft.md"):
+                (run_dir / name).write_text("complete", encoding="utf-8")
+            self.assertTrue(run_loop.author_artifacts_ready(run_dir))
 
     def test_windows_startup_entry_starts_daemon(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -150,6 +160,42 @@ class CrossPlatformTests(unittest.TestCase):
         self.assertTrue(evidence[0]["ok"])
         self.assertEqual(evidence[0]["title"], "Codex Models")
         self.assertIn("gpt-5.6-sol", evidence[0]["model_mentions"])
+
+    def test_official_source_probe_follows_permanent_redirect(self) -> None:
+        run_loop = load_run_loop()
+        headers = Message()
+        headers["Location"] = "https://developers.openai.com/api/docs/models"
+
+        class FakeHeaders:
+            def get_content_charset(self):
+                return "utf-8"
+
+            def get(self, name):
+                return "text/html" if name.lower() == "content-type" else None
+
+        class FakeResponse:
+            status = 200
+            headers = FakeHeaders()
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def read(self, limit):
+                return b"<title>Models</title>"
+
+            def geturl(self):
+                return "https://developers.openai.com/api/docs/models"
+
+        redirect = run_loop.urllib.error.HTTPError(
+            "https://developers.openai.com/codex/models", 308, "Permanent Redirect", headers, None
+        )
+        with patch.object(run_loop.urllib.request, "urlopen", side_effect=[redirect, FakeResponse()]):
+            evidence = run_loop.fetch_official_source("https://developers.openai.com/codex/models")
+        self.assertTrue(evidence["ok"])
+        self.assertEqual(evidence["final_url"], "https://developers.openai.com/api/docs/models")
 
     def test_official_source_probe_required_blocks_all_failures(self) -> None:
         run_loop = load_run_loop()

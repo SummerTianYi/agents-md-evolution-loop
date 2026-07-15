@@ -11,6 +11,7 @@ import re
 import subprocess
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -71,36 +72,41 @@ def compact_text(value: str) -> str:
 
 
 def fetch_official_source(url: str) -> dict:
-    request = urllib.request.Request(
-        url,
-        headers={
-            "Accept": "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
-            "User-Agent": "codex-agents-evolve/1.0",
-        },
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=SOURCE_TIMEOUT_SECONDS) as response:
-            raw = response.read(SOURCE_READ_LIMIT)
-            charset = response.headers.get_content_charset() or "utf-8"
-            text = raw.decode(charset, errors="replace")
-            title_match = TITLE_PATTERN.search(text)
-            model_mentions = sorted({match.group(0) for match in MODEL_ID_PATTERN.finditer(text.lower())})
-            return {
-                "url": url,
-                "final_url": response.geturl(),
-                "status": getattr(response, "status", None),
-                "content_type": response.headers.get("content-type"),
-                "bytes_sampled": len(raw),
-                "title": compact_text(title_match.group(1)) if title_match else None,
-                "model_mentions": model_mentions[:30],
-                "ok": True,
-            }
-    except (urllib.error.URLError, TimeoutError, OSError, UnicodeError) as error:
-        return {
-            "url": url,
-            "ok": False,
-            "error": f"{type(error).__name__}: {error}",
-        }
+    current_url = url
+    for _ in range(4):
+        request = urllib.request.Request(
+            current_url,
+            headers={
+                "Accept": "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
+                "User-Agent": "codex-agents-evolve/1.0",
+            },
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=SOURCE_TIMEOUT_SECONDS) as response:
+                raw = response.read(SOURCE_READ_LIMIT)
+                charset = response.headers.get_content_charset() or "utf-8"
+                text = raw.decode(charset, errors="replace")
+                title_match = TITLE_PATTERN.search(text)
+                model_mentions = sorted({match.group(0) for match in MODEL_ID_PATTERN.finditer(text.lower())})
+                return {
+                    "url": url,
+                    "final_url": response.geturl(),
+                    "status": getattr(response, "status", None),
+                    "content_type": response.headers.get("content-type"),
+                    "bytes_sampled": len(raw),
+                    "title": compact_text(title_match.group(1)) if title_match else None,
+                    "model_mentions": model_mentions[:30],
+                    "ok": True,
+                }
+        except urllib.error.HTTPError as error:
+            location = error.headers.get("Location") if error.code in {307, 308} and error.headers else None
+            if location:
+                current_url = urllib.parse.urljoin(current_url, location)
+                continue
+            return {"url": url, "ok": False, "error": f"{type(error).__name__}: {error}"}
+        except (urllib.error.URLError, TimeoutError, OSError, UnicodeError) as error:
+            return {"url": url, "ok": False, "error": f"{type(error).__name__}: {error}"}
+    return {"url": url, "ok": False, "error": "too many HTTP redirects"}
 
 
 def collect_official_source_evidence(sources: list[str], required: bool) -> list[dict]:
@@ -185,6 +191,13 @@ def enabled_eval_files(root: Path) -> list[Path]:
     if not files:
         raise RuntimeError("no enabled YAML evaluation cases found")
     return files
+
+
+def author_artifacts_ready(run_dir: Path) -> bool:
+    return all(
+        path.is_file() and path.stat().st_size > 0
+        for path in (run_dir / "candidate.md", run_dir / "changes.diff", run_dir / "evaluation-draft.md")
+    )
 
 
 def write_baseline_report(root: Path, action: dict, source_url: str, effort: str) -> Path:
@@ -278,8 +291,12 @@ def execute(args: argparse.Namespace) -> dict:
         })
         write_json(trigger_path, trigger)
         run_data = update_run_status(run_path, trigger_mode=trigger["mode"], simulated_event=True)
-    if action["action"] == "pending" and run_data.get("status") not in {"candidate_required", "author_failed", "review_failed"}:
-        return action
+    if action["action"] == "pending":
+        status = run_data.get("status")
+        if status == "author_running" and author_artifacts_ready(run_dir):
+            run_data = update_run_status(run_path, status="review_required")
+        elif status not in {"candidate_required", "author_failed", "review_failed", "review_required"}:
+            return action
 
     run_mode = trigger["mode"] if trigger is not None else args.run_mode
     simulated_event = run_mode == "simulated_model_update"
