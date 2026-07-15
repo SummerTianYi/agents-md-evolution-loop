@@ -166,7 +166,10 @@ class CrossPlatformTests(unittest.TestCase):
 
     def test_macos_launch_agent_is_loaded_and_verified(self) -> None:
         completed = type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
-        with patch.object(register_loop.subprocess, "run", return_value=completed) as run:
+        with (
+            patch.object(register_loop.os, "getuid", return_value=501, create=True),
+            patch.object(register_loop.subprocess, "run", return_value=completed) as run,
+        ):
             register_loop.load_macos_launch_agent(Path("/tmp/com.example.loop.plist"))
         self.assertEqual(run.call_count, 2)
         self.assertIn("bootstrap", run.call_args_list[0].args[0])
