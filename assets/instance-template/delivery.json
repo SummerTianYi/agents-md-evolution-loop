@@ -10,9 +10,9 @@
   "send_no_update": false,
   "attach_files": false,
   "include_complete_evaluation": true,
-  "include_full_diff": true,
-  "include_full_original": true,
-  "include_full_candidate": true,
+  "include_full_diff": false,
+  "include_full_original": false,
+  "include_full_candidate": false,
   "secret_scan_required": true,
   "verify_sent": true
 }

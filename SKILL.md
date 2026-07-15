@@ -37,7 +37,7 @@ Keep the reusable skill separate from each user's runtime instance. Never copy b
 - Launch the candidate author in a fresh `codex exec` session using the highest-priority visible local model and the configured maximum reasoning effort. Launch an independent reviewer in a second fresh session with the same model and effort.
 - Preserve `original.md`, record execution evidence, verify candidate checksums before and after review, and evaluate every enabled case under the instance `evals/` directory.
 - Produce the smallest justified candidate. Reject safety, authorization, stable-intent, or critical-case regressions.
-- Build a Simplified Chinese approval report containing the full evaluation, full diff, original text, candidate text, and approval command when the deterministic secret scan passes. Omit affected full-text sections when it fails.
+- Build a Simplified Chinese approval report with structured JSON risk and approval fields, the full evaluation, and the approval command. Keep the full diff, original text, and candidate text in the local Run by default; include them in email only when the user explicitly enables those sections. Omit affected full-text sections when the deterministic secret scan fails.
 
 ## Approval and installation
 

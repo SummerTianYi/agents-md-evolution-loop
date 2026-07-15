@@ -224,12 +224,12 @@ class CrossPlatformTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "official source check failed"):
                 run_loop.collect_official_source_evidence(["https://developers.openai.com/codex/models"], True)
 
-    def test_default_delivery_contains_full_approval_material(self) -> None:
+    def test_default_delivery_keeps_email_approval_summary_compact(self) -> None:
         delivery = json.loads((ROOT / "assets" / "instance-template" / "delivery.json").read_text(encoding="utf-8"))
         self.assertTrue(delivery["include_complete_evaluation"])
-        self.assertTrue(delivery["include_full_diff"])
-        self.assertTrue(delivery["include_full_original"])
-        self.assertTrue(delivery["include_full_candidate"])
+        self.assertFalse(delivery["include_full_diff"])
+        self.assertFalse(delivery["include_full_original"])
+        self.assertFalse(delivery["include_full_candidate"])
 
     def test_daemon_queues_delivery_request_without_sending(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
