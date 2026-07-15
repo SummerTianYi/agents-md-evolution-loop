@@ -119,6 +119,45 @@ class CrossPlatformTests(unittest.TestCase):
         self.assertEqual(model["slug"], "gpt-newer")
         self.assertEqual(effort, "max")
 
+    def test_official_source_probe_extracts_evidence_without_model(self) -> None:
+        run_loop = load_run_loop()
+
+        class FakeHeaders:
+            def get_content_charset(self):
+                return "utf-8"
+
+            def get(self, name):
+                return "text/html" if name.lower() == "content-type" else None
+
+        class FakeResponse:
+            status = 200
+            headers = FakeHeaders()
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def read(self, limit):
+                return b"<html><title>Codex Models</title><body>gpt-5.6-sol codex-mini</body></html>"
+
+            def geturl(self):
+                return "https://developers.openai.com/codex/models"
+
+        with patch.object(run_loop.urllib.request, "urlopen", return_value=FakeResponse()):
+            evidence = run_loop.collect_official_source_evidence(["https://developers.openai.com/codex/models"], True)
+        self.assertTrue(evidence[0]["ok"])
+        self.assertEqual(evidence[0]["title"], "Codex Models")
+        self.assertIn("gpt-5.6-sol", evidence[0]["model_mentions"])
+
+    def test_official_source_probe_required_blocks_all_failures(self) -> None:
+        run_loop = load_run_loop()
+        failed = {"url": "https://developers.openai.com/codex/models", "ok": False, "error": "offline"}
+        with patch.object(run_loop, "fetch_official_source", return_value=failed):
+            with self.assertRaisesRegex(RuntimeError, "official source check failed"):
+                run_loop.collect_official_source_evidence(["https://developers.openai.com/codex/models"], True)
+
     def test_default_delivery_contains_full_approval_material(self) -> None:
         delivery = json.loads((ROOT / "assets" / "instance-template" / "delivery.json").read_text(encoding="utf-8"))
         self.assertTrue(delivery["include_complete_evaluation"])

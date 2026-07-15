@@ -32,7 +32,7 @@ Keep the reusable skill separate from each user's runtime instance. Never copy b
 
 ## Audit rules
 
-- Check the configured official OpenAI Codex Models and Changelog pages for release context, then select the highest-priority visible model from the local `codex debug models` catalog. Do not hardcode a model-family name or infer local availability from web pages alone.
+- Check the configured official OpenAI Codex Models and Changelog pages with a deterministic HTTP probe by default. Do not use the newest model, `codex exec`, or maximum reasoning for this detection step; if a future install enables a detector model, it should be a lightweight extractor only and must be recorded separately from the author/reviewer. Then select the highest-priority visible model from the local `codex debug models` catalog. Do not hardcode a model-family name or infer local availability from web pages alone.
 - Launch the candidate author in a fresh `codex exec` session using the highest-priority visible local model and the configured maximum reasoning effort. Launch an independent reviewer in a second fresh session with the same model and effort.
 - Preserve `original.md`, record execution evidence, verify candidate checksums before and after review, and evaluate every enabled case under the instance `evals/` directory.
 - Produce the smallest justified candidate. Reject safety, authorization, stable-intent, or critical-case regressions.

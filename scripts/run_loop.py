@@ -7,8 +7,11 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -18,6 +21,10 @@ from platform_support import subprocess_environment
 SKILL_DIR = Path(__file__).resolve().parents[1]
 PREPARE = SKILL_DIR / "scripts" / "prepare_run.py"
 BUILD_EMAIL_REPORT = SKILL_DIR / "scripts" / "build_email_report.py"
+SOURCE_READ_LIMIT = 131_072
+SOURCE_TIMEOUT_SECONDS = 20
+MODEL_ID_PATTERN = re.compile(r"\b(?:gpt|codex|o)[a-z0-9_.-]*(?:-[a-z0-9_.-]+)*\b", re.IGNORECASE)
+TITLE_PATTERN = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 
 
 def sha256(path: Path) -> str:
@@ -57,6 +64,51 @@ def resolve_reasoning_effort(model: dict, requested_effort: str) -> str:
     if requested_effort not in levels:
         raise RuntimeError(f"{model['slug']} does not advertise {requested_effort} reasoning; refusing silent downgrade")
     return requested_effort
+
+
+def compact_text(value: str) -> str:
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def fetch_official_source(url: str) -> dict:
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
+            "User-Agent": "codex-agents-evolve/1.0",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=SOURCE_TIMEOUT_SECONDS) as response:
+            raw = response.read(SOURCE_READ_LIMIT)
+            charset = response.headers.get_content_charset() or "utf-8"
+            text = raw.decode(charset, errors="replace")
+            title_match = TITLE_PATTERN.search(text)
+            model_mentions = sorted({match.group(0) for match in MODEL_ID_PATTERN.finditer(text.lower())})
+            return {
+                "url": url,
+                "final_url": response.geturl(),
+                "status": getattr(response, "status", None),
+                "content_type": response.headers.get("content-type"),
+                "bytes_sampled": len(raw),
+                "title": compact_text(title_match.group(1)) if title_match else None,
+                "model_mentions": model_mentions[:30],
+                "ok": True,
+            }
+    except (urllib.error.URLError, TimeoutError, OSError, UnicodeError) as error:
+        return {
+            "url": url,
+            "ok": False,
+            "error": f"{type(error).__name__}: {error}",
+        }
+
+
+def collect_official_source_evidence(sources: list[str], required: bool) -> list[dict]:
+    evidence = [fetch_official_source(source) for source in sources]
+    if required and not any(item.get("ok") for item in evidence):
+        errors = "; ".join(f"{item['url']} -> {item.get('error', 'unknown error')}" for item in evidence)
+        raise RuntimeError(f"official source check failed for all configured sources: {errors}")
+    return evidence
 
 
 def latest_executable_model(codex: str, cwd: Path, reasoning_effort: str) -> tuple[dict, str]:
@@ -183,6 +235,7 @@ def execute(args: argparse.Namespace) -> dict:
     if not sources:
         raise RuntimeError("at least one official OpenAI Codex source is required")
     source_url = args.source_url or sources[0]
+    source_evidence = collect_official_source_evidence(sources, bool(config.get("official_source_check_required", True)))
     model, effective_effort = latest_executable_model(codex, root, author_effort)
     model_id = model["slug"]
     trigger_path = resolve_from_root(root, config.get("test_trigger_path", "test-trigger.json"))
@@ -244,7 +297,20 @@ def execute(args: argparse.Namespace) -> dict:
         "reviewer_reasoning_effort": effective_effort,
         "configured_reviewer_reasoning_effort": reviewer_effort,
         "official_sources": sources,
-        "detector_evidence": "the scheduled Codex task checks configured OpenAI sources; local codex debug models selects the highest-priority visible executable model",
+        "detector": {
+            "mode": "deterministic_official_source_probe_plus_local_catalog",
+            "uses_codex_exec": False,
+            "model_used": None,
+            "official_source_required": bool(config.get("official_source_check_required", True)),
+            "official_source_evidence": source_evidence,
+            "local_catalog_selection": {
+                "slug": model_id,
+                "priority": model.get("priority"),
+                "description": model.get("description"),
+                "supported_reasoning_levels": model.get("supported_reasoning_levels", []),
+            },
+        },
+        "detector_evidence": "deterministic official-source HTTP probe plus local codex debug models; no model is used for detection",
         "trigger_mode": run_mode,
         "simulated_event": simulated_event,
         "enabled_evals": [str(path) for path in eval_files],

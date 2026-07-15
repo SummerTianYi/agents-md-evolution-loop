@@ -16,6 +16,7 @@
   "require_fresh_sessions": true,
   "require_independent_reviewer": true,
   "max_pending_candidates_per_model": 1,
+  "official_source_check_required": true,
   "official_sources": [
     "https://developers.openai.com/codex/models",
     "https://developers.openai.com/codex/changelog"
