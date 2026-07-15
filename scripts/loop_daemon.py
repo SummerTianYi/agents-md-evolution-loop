@@ -99,11 +99,14 @@ def run_once(root: Path, config: dict) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, required=True)
+    parser.add_argument("--once", action="store_true")
     args = parser.parse_args()
     root = args.root.expanduser().resolve()
     config = json.loads((root / "config.json").read_text(encoding="utf-8"))
     root.joinpath("logs").mkdir(exist_ok=True)
     run_once(root, config)
+    if args.once:
+        return
     while True:
         delay = max(1, int((next_run(config["schedule"]["weekdays"], config["schedule"]["times"]) - datetime.now().astimezone()).total_seconds()))
         time.sleep(delay)

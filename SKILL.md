@@ -17,15 +17,16 @@ Keep the reusable skill separate from each user's runtime instance. Never copy b
 6. Ask whether to use the neutral preference profile or Michael's optional author-preference profile. Explain each Michael preference individually; never imply it is a universal Codex rule.
 7. After confirmation, run `python scripts/bootstrap.py --root <instance-root> --gmail-sender <sender> --gmail-recipient <recipient> --preference-profile <profile> --run-once`. The first run is an onboarding test and must not install a candidate.
 8. Create a Codex scheduled task using the generated `<instance-root>/automation-prompt.md`. It must run in a Gmail-capable Codex environment; only this task may send and verify the report in Sent.
-9. Optionally install `--install-local-audit-daemon` for local audit production. It writes a delivery request for the Gmail-capable task and never claims email delivery.
+9. Optionally install `--install-local-audit-daemon` as a one-shot login check. It writes a delivery request for the Gmail-capable task, exits, and never claims email delivery.
 
 ## Scheduled check
 
-1. The Gmail-capable Codex scheduled task runs `python scripts/run_loop.py --root <instance-root>` at the configured schedule. A local daemon, when explicitly installed, only produces auditable local delivery requests.
+1. The Gmail-capable Codex scheduled task is the sole owner of weekday 10:00 and 17:00 checks and runs `python scripts/run_loop.py --root <instance-root>`. A local login entry, when explicitly installed, runs one startup check and exits. The instance lock makes overlapping calls return `busy` without creating a second Run.
 2. Parse its single JSON result:
    - `baseline`: save and deliver the Chinese baseline report if configured.
    - `no_change`: return `NO_UPDATE`; do not create or send a report.
    - `pending`: identify the existing pending Run; do not create or resend it.
+   - `busy`: another check owns the instance; stop without sending mail.
    - `report`: send only the returned `email-report.md` through the configured Gmail account.
    - failure: create a Chinese local failure report and deliver it when possible.
 3. Before sending, search Gmail Sent using the unique Chinese subject and Run ID. Send the full Markdown as the message body without attachments, then verify the message in Sent. Never claim success without verification.

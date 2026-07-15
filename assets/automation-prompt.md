@@ -4,7 +4,7 @@ Read `{{INSTANCE_ROOT}}/config.json` and inspect any `{{INSTANCE_ROOT}}/delivery
 
 Then check the configured official OpenAI model and changelog pages for release context, run `python "{{SKILL_DIR}}/scripts/run_loop.py" --root "{{INSTANCE_ROOT}}"`, and parse its single JSON result. The script itself selects the highest-priority visible locally executable Codex model; do not substitute another model.
 
-- For `no_change` or `pending`, stop without sending mail.
+- For `no_change`, `pending`, or `busy`, stop without sending mail.
 - For `baseline`, `report`, or `failure`, read `{{INSTANCE_ROOT}}/delivery.json`. Use the connected Gmail account only when it is the configured sender and send only to the configured recipient. If Gmail is unavailable, record a local delivery failure; do not claim delivery.
 - Before sending, search Gmail Sent for the exact subject prefix, event, and Run ID. If a matching message exists, do not send again.
 - Otherwise, send the returned Markdown report as the email body without attachments. Search Sent again and do not claim delivery unless it is found.

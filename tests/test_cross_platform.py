@@ -98,6 +98,17 @@ class CrossPlatformTests(unittest.TestCase):
             text = entry.read_text(encoding="utf-8")
             self.assertIn("loop_daemon.py", text)
             self.assertIn("--root", text)
+            self.assertIn("--once", text)
+
+    def test_macos_startup_entry_runs_daemon_once(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            home = base / "home"
+            with patch.object(register_loop.Path, "home", return_value=home):
+                entry = register_loop.write_macos_launch_agent(base / "instance", ROOT)
+            payload = __import__("plistlib").loads(entry.read_bytes())
+            self.assertIn("--once", payload["ProgramArguments"])
+            self.assertNotIn("KeepAlive", payload)
 
     def test_daemon_selects_next_weekday_run(self) -> None:
         now = __import__("datetime").datetime(2026, 7, 17, 18, 0).astimezone()
@@ -114,6 +125,15 @@ class CrossPlatformTests(unittest.TestCase):
         model = {"slug": "gpt-test", "supported_reasoning_levels": [{"effort": "xhigh"}]}
         with self.assertRaisesRegex(RuntimeError, "refusing silent downgrade"):
             run_loop.resolve_reasoning_effort(model, "max")
+
+    def test_instance_lock_rejects_overlapping_loop(self) -> None:
+        run_loop = load_run_loop()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            with run_loop.exclusive_instance_lock(root):
+                with self.assertRaises(run_loop.LoopBusy):
+                    with run_loop.exclusive_instance_lock(root):
+                        pass
 
     def test_latest_executable_model_uses_catalog_priority(self) -> None:
         run_loop = load_run_loop()
@@ -235,6 +255,20 @@ class CrossPlatformTests(unittest.TestCase):
                 outcome = loop_daemon.run_once(root, {"skill_dir": str(skill_dir)})
             self.assertEqual(outcome["action"], "no_change")
             self.assertTrue((root / "logs" / "loop.log").is_file())
+
+    def test_daemon_once_exits_without_sleeping(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "config.json").write_text('{"schedule":{"weekdays":["MO"],"times":["10:00"]}}', encoding="utf-8")
+            argv = ["loop_daemon.py", "--root", str(root), "--once"]
+            with (
+                patch.object(sys, "argv", argv),
+                patch.object(loop_daemon, "run_once", return_value={"action": "no_change"}) as run_once,
+                patch.object(loop_daemon.time, "sleep") as sleep,
+            ):
+                loop_daemon.main()
+            run_once.assert_called_once()
+            sleep.assert_not_called()
 
     def test_delivery_record_requires_sent_verification_and_updates_request(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

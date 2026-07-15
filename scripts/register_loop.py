@@ -23,7 +23,7 @@ def write_windows_startup(root: Path, skill_dir: Path) -> Path:
         raise SystemExit(f"startup entry already exists: {path}; refusing to replace it")
     path.write_text(
         "@echo off\r\n"
-        f'start "Codex AGENTS Evolution" /b python "{skill_dir / "scripts" / "loop_daemon.py"}" --root "{root}"\r\n',
+        f'start "Codex AGENTS Evolution" /b python "{skill_dir / "scripts" / "loop_daemon.py"}" --root "{root}" --once\r\n',
         encoding="utf-8",
     )
     return path
@@ -37,9 +37,8 @@ def write_macos_launch_agent(root: Path, skill_dir: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     plist = {
         "Label": label,
-        "ProgramArguments": ["/usr/bin/env", "python3", str(skill_dir / "scripts" / "loop_daemon.py"), "--root", str(root)],
+        "ProgramArguments": ["/usr/bin/env", "python3", str(skill_dir / "scripts" / "loop_daemon.py"), "--root", str(root), "--once"],
         "RunAtLoad": True,
-        "KeepAlive": True,
         "StandardOutPath": str(root / "logs" / "loop.log"),
         "StandardErrorPath": str(root / "logs" / "loop-error.log"),
     }

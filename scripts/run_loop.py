@@ -13,6 +13,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -26,6 +27,48 @@ SOURCE_READ_LIMIT = 131_072
 SOURCE_TIMEOUT_SECONDS = 20
 MODEL_ID_PATTERN = re.compile(r"\b(?:gpt|codex|o)[a-z0-9_.-]*(?:-[a-z0-9_.-]+)*\b", re.IGNORECASE)
 TITLE_PATTERN = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+
+
+class LoopBusy(RuntimeError):
+    pass
+
+
+@contextmanager
+def exclusive_instance_lock(root: Path):
+    path = root / ".run-loop.lock"
+    handle = path.open("a+b")
+    locked = False
+    try:
+        handle.seek(0, os.SEEK_END)
+        if handle.tell() == 0:
+            handle.write(b"\0")
+            handle.flush()
+        handle.seek(0)
+        try:
+            if os.name == "nt":
+                import msvcrt
+
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            locked = True
+        except OSError as error:
+            raise LoopBusy(f"another loop is already running for {root}") from error
+        yield
+    finally:
+        if locked:
+            handle.seek(0)
+            if os.name == "nt":
+                import msvcrt
+
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        handle.close()
 
 
 def sha256(path: Path) -> str:
@@ -445,10 +488,13 @@ def main() -> None:
     parser.add_argument("--force-audit", action="store_true")
     parser.add_argument("--run-mode", default="actual_model_detection")
     args = parser.parse_args()
+    root = args.root.expanduser().resolve()
     try:
-        print(json.dumps(execute(args), ensure_ascii=False))
+        with exclusive_instance_lock(root):
+            print(json.dumps(execute(args), ensure_ascii=False))
+    except LoopBusy as error:
+        print(json.dumps({"action": "busy", "error": str(error)}, ensure_ascii=False))
     except Exception as error:
-        root = args.root.expanduser().resolve()
         report = write_failure_report(root, error)
         print(json.dumps({"action": "failure", "error": str(error), "report_path": str(report) if report else None}, ensure_ascii=False))
         raise SystemExit(1)
