@@ -13,7 +13,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from platform_support import subprocess_environment
-from official_models import fetch_target
 
 
 SKILL_DIR = Path(__file__).resolve().parents[1]
@@ -55,26 +54,21 @@ def resolve_from_root(root: Path, value: str | Path) -> Path:
 
 def resolve_reasoning_effort(model: dict, requested_effort: str) -> str:
     levels = {item["effort"] for item in model.get("supported_reasoning_levels", [])}
-    if requested_effort == "max":
-        for effort in ("max", "xhigh", "high", "medium", "low"):
-            if effort in levels:
-                return effort
-        raise RuntimeError(f"{model['slug']} does not advertise any supported reasoning levels")
     if requested_effort not in levels:
         raise RuntimeError(f"{model['slug']} does not advertise {requested_effort} reasoning; refusing silent downgrade")
     return requested_effort
 
 
-def executable_model(codex: str, cwd: Path, official_target: str, reasoning_effort: str) -> tuple[dict, str]:
+def latest_executable_model(codex: str, cwd: Path, reasoning_effort: str) -> tuple[dict, str]:
     result = run([codex, "debug", "models"], cwd=cwd, timeout=60)
     if result.returncode:
         raise RuntimeError(f"model catalog failed: {result.stderr.strip()}")
     catalog = json.loads(result.stdout)
     visible = [model for model in catalog.get("models", []) if model.get("visibility") == "list"]
-    model = next((item for item in visible if item.get("slug") == official_target), None)
-    if model is None:
-        available = ", ".join(item.get("slug", "unknown") for item in visible)
-        raise RuntimeError(f"official latest model {official_target} is not executable by the local Codex CLI; available: {available}")
+    visible.sort(key=lambda item: item.get("priority", 1_000_000))
+    if not visible:
+        raise RuntimeError("local Codex catalog has no visible model")
+    model = visible[0]
     return model, resolve_reasoning_effort(model, reasoning_effort)
 
 
@@ -189,8 +183,7 @@ def execute(args: argparse.Namespace) -> dict:
     if not sources:
         raise RuntimeError("at least one official OpenAI Codex source is required")
     source_url = args.source_url or sources[0]
-    official_target = fetch_target(source_url)
-    model, effective_effort = executable_model(codex, root, official_target, author_effort)
+    model, effective_effort = latest_executable_model(codex, root, author_effort)
     model_id = model["slug"]
     trigger_path = resolve_from_root(root, config.get("test_trigger_path", "test-trigger.json"))
     trigger = due_trigger(trigger_path)
@@ -242,7 +235,6 @@ def execute(args: argparse.Namespace) -> dict:
         "schema_version": 2,
         "started_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "detected_model": model_id,
-        "official_latest_model": official_target,
         "catalog_priority": model.get("priority"),
         "catalog_description": model.get("description"),
         "author_model": model_id,
@@ -251,8 +243,8 @@ def execute(args: argparse.Namespace) -> dict:
         "reviewer_model": model_id,
         "reviewer_reasoning_effort": effective_effort,
         "configured_reviewer_reasoning_effort": reviewer_effort,
-        "official_source": source_url,
-        "detector_evidence": "OpenAI official model catalog determines the target; local codex debug models verifies executability",
+        "official_sources": sources,
+        "detector_evidence": "the scheduled Codex task checks configured OpenAI sources; local codex debug models selects the highest-priority visible executable model",
         "trigger_mode": run_mode,
         "simulated_event": simulated_event,
         "enabled_evals": [str(path) for path in eval_files],

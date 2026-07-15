@@ -16,8 +16,8 @@ sys.path.insert(0, str(SCRIPTS))
 
 import init_instance
 import loop_daemon
-import official_models
 import platform_support
+import record_delivery
 import register_loop
 
 
@@ -85,14 +85,83 @@ class CrossPlatformTests(unittest.TestCase):
         expected = now.replace(day=20, hour=10, minute=0)
         self.assertEqual(loop_daemon.next_run(["MO", "TU", "WE", "TH", "FR"], ["10:00", "17:00"], now), expected)
 
-    def test_official_catalog_selects_highest_sol_generation(self) -> None:
-        text = "Use GPT-5.5 Sol today. GPT-5.6 Sol is the flagship model."
-        self.assertEqual(official_models.target_from_official_text(text), "gpt-5.6-sol")
-
     def test_reasoning_effort_preserves_literal_max(self) -> None:
         run_loop = load_run_loop()
         model = {"slug": "gpt-5.6-sol", "supported_reasoning_levels": [{"effort": "xhigh"}, {"effort": "max"}]}
         self.assertEqual(run_loop.resolve_reasoning_effort(model, "max"), "max")
+
+    def test_reasoning_effort_refuses_max_downgrade(self) -> None:
+        run_loop = load_run_loop()
+        model = {"slug": "gpt-test", "supported_reasoning_levels": [{"effort": "xhigh"}]}
+        with self.assertRaisesRegex(RuntimeError, "refusing silent downgrade"):
+            run_loop.resolve_reasoning_effort(model, "max")
+
+    def test_latest_executable_model_uses_catalog_priority(self) -> None:
+        run_loop = load_run_loop()
+        catalog = {
+            "models": [
+                {"slug": "gpt-older", "visibility": "list", "priority": 10, "supported_reasoning_levels": [{"effort": "max"}]},
+                {"slug": "gpt-newer", "visibility": "list", "priority": 1, "supported_reasoning_levels": [{"effort": "max"}]},
+            ]
+        }
+        result = type("Result", (), {"stdout": json.dumps(catalog), "stderr": "", "returncode": 0})()
+        with patch.object(run_loop, "run", return_value=result):
+            model, effort = run_loop.latest_executable_model("codex", Path("."), "max")
+        self.assertEqual(model["slug"], "gpt-newer")
+        self.assertEqual(effort, "max")
+
+    def test_default_delivery_contains_full_approval_material(self) -> None:
+        delivery = json.loads((ROOT / "assets" / "instance-template" / "delivery.json").read_text(encoding="utf-8"))
+        self.assertTrue(delivery["include_complete_evaluation"])
+        self.assertTrue(delivery["include_full_diff"])
+        self.assertTrue(delivery["include_full_original"])
+        self.assertTrue(delivery["include_full_candidate"])
+
+    def test_daemon_queues_delivery_request_without_sending(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            report = root / "runs" / "run-1" / "email-report.md"
+            report.parent.mkdir(parents=True)
+            report.write_text("report", encoding="utf-8")
+            request = loop_daemon.queue_delivery(root, {"action": "report", "event": "audit_complete", "run_dir": str(report.parent), "report_path": str(report)})
+            self.assertIsNotNone(request)
+            payload = json.loads(request.read_text(encoding="utf-8"))
+            self.assertEqual(payload["status"], "pending_gmail_delivery")
+            self.assertEqual(payload["report_path"], str(report.resolve()))
+
+    def test_daemon_run_once_creates_log_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            skill_dir = root / "skill"
+            script = skill_dir / "scripts" / "run_loop.py"
+            script.parent.mkdir(parents=True)
+            script.write_text("", encoding="utf-8")
+            completed = type("Result", (), {"stdout": '{"action":"no_change"}\n', "stderr": "", "returncode": 0})()
+            with patch.object(loop_daemon.subprocess, "run", return_value=completed):
+                outcome = loop_daemon.run_once(root, {"skill_dir": str(skill_dir)})
+            self.assertEqual(outcome["action"], "no_change")
+            self.assertTrue((root / "logs" / "loop.log").is_file())
+
+    def test_delivery_record_requires_sent_verification_and_updates_request(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            request = root / "delivery-requests" / "run-1.json"
+            request.parent.mkdir()
+            request.write_text(json.dumps({"status": "pending_gmail_delivery"}), encoding="utf-8")
+            argv = ["record_delivery.py", "--root", str(root), "--event", "audit_complete", "--run-id", "run-1", "--subject", "subject", "--message-id", "message-1", "--verified"]
+            with patch.object(sys, "argv", argv):
+                record_delivery.main()
+            updated = json.loads(request.read_text(encoding="utf-8"))
+            self.assertEqual(updated["status"], "sent_verified")
+            self.assertEqual(updated["message_id"], "message-1")
+
+    def test_macos_launch_agent_is_loaded_and_verified(self) -> None:
+        completed = type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        with patch.object(register_loop.subprocess, "run", return_value=completed) as run:
+            register_loop.load_macos_launch_agent(Path("/tmp/com.example.loop.plist"))
+        self.assertEqual(run.call_count, 2)
+        self.assertIn("bootstrap", run.call_args_list[0].args[0])
+        self.assertIn("print", run.call_args_list[1].args[0])
 
 
 if __name__ == "__main__":

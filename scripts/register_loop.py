@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import plistlib
+import subprocess
 from pathlib import Path
 
 from platform_support import platform_name
@@ -47,6 +48,17 @@ def write_macos_launch_agent(root: Path, skill_dir: Path) -> Path:
     return path
 
 
+def load_macos_launch_agent(path: Path) -> None:
+    domain = f"gui/{os.getuid()}"
+    loaded = subprocess.run(["launchctl", "bootstrap", domain, str(path)], text=True, capture_output=True, check=False)
+    if loaded.returncode:
+        raise SystemExit(loaded.stderr.strip() or loaded.stdout.strip() or "launchctl bootstrap failed")
+    label = path.stem
+    verified = subprocess.run(["launchctl", "print", f"{domain}/{label}"], text=True, capture_output=True, check=False)
+    if verified.returncode:
+        raise SystemExit(verified.stderr.strip() or verified.stdout.strip() or "LaunchAgent was not loaded")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, required=True)
@@ -60,9 +72,11 @@ def main() -> None:
         entry = write_windows_startup(root, Path(config["skill_dir"])) if args.install else None
     elif platform == "macos":
         entry = write_macos_launch_agent(root, Path(config["skill_dir"])) if args.install else None
+        if entry:
+            load_macos_launch_agent(entry)
     else:
         raise SystemExit(f"unsupported platform: {platform}")
-    manifest = {"platform": platform, "entry": str(entry) if entry else None, "installed": bool(args.install), "schedule": config["schedule"]}
+    manifest = {"platform": platform, "entry": str(entry) if entry else None, "installed": bool(args.install), "loaded": bool(entry) if platform == "macos" else None, "schedule": config["schedule"], "delivery": "requires_codex_gmail_task"}
     (root / "scheduler.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(manifest, ensure_ascii=False))
 

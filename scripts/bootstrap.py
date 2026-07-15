@@ -27,13 +27,14 @@ def main() -> None:
     parser.add_argument("--gmail-sender", required=True)
     parser.add_argument("--gmail-recipient", required=True)
     parser.add_argument("--preference-profile", choices=("neutral", "michael"), default="neutral")
-    parser.add_argument("--install-schedule", action="store_true")
+    parser.add_argument("--install-local-audit-daemon", action="store_true")
+    parser.add_argument("--install-schedule", dest="install_local_audit_daemon", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--run-once", action="store_true")
     args = parser.parse_args()
     create = [sys.executable, str(SKILL_DIR / "scripts" / "init_instance.py"), "create", "--root", str(args.root), "--gmail-sender", args.gmail_sender, "--gmail-recipient", args.gmail_recipient, "--preference-profile", args.preference_profile, "--confirmed"]
     run(create)
     schedule = [sys.executable, str(SKILL_DIR / "scripts" / "register_loop.py"), "--root", str(args.root)]
-    if args.install_schedule:
+    if args.install_local_audit_daemon:
         schedule.append("--install")
     run(schedule)
     if args.run_once:

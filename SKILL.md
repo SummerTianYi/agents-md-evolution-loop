@@ -15,13 +15,13 @@ Keep the reusable skill separate from each user's runtime instance. Never copy b
 4. Ask the user to supply or confirm the Gmail sender and recipient. Gmail is the default and currently supported report path; never retain another person's address. Confirm the connected Gmail account before scheduling delivery.
 5. Keep Simplified Chinese reports and the weekday 10:00 and 17:00 schedule as recommended defaults. Detect the host time zone automatically; do not ask the user to enter it unless they explicitly request an override.
 6. Ask whether to use the neutral preference profile or Michael's optional author-preference profile. Explain each Michael preference individually; never imply it is a universal Codex rule.
-7. After confirmation, run `python scripts/bootstrap.py --root <instance-root> --gmail-sender <sender> --gmail-recipient <recipient> --preference-profile <profile> --install-schedule --run-once`.
-8. The bootstrap creates persistent platform scheduling: a login/startup check plus weekday checks. The first run is an onboarding test and must not install a candidate.
-9. After a report is produced, use the connected Gmail account to send and verify the test message in Sent. Record the result without storing credentials.
+7. After confirmation, run `python scripts/bootstrap.py --root <instance-root> --gmail-sender <sender> --gmail-recipient <recipient> --preference-profile <profile> --run-once`. The first run is an onboarding test and must not install a candidate.
+8. Create a Codex scheduled task using the generated `<instance-root>/automation-prompt.md`. It must run in a Gmail-capable Codex environment; only this task may send and verify the report in Sent.
+9. Optionally install `--install-local-audit-daemon` for local audit production. It writes a delivery request for the Gmail-capable task and never claims email delivery.
 
 ## Scheduled check
 
-1. The registered loop runs `python scripts/run_loop.py --root <instance-root>` at startup and at the configured schedule. Manual execution is only for diagnosis or the first onboarding test.
+1. The Gmail-capable Codex scheduled task runs `python scripts/run_loop.py --root <instance-root>` at the configured schedule. A local daemon, when explicitly installed, only produces auditable local delivery requests.
 2. Parse its single JSON result:
    - `baseline`: save and deliver the Chinese baseline report if configured.
    - `no_change`: return `NO_UPDATE`; do not create or send a report.
@@ -32,7 +32,7 @@ Keep the reusable skill separate from each user's runtime instance. Never copy b
 
 ## Audit rules
 
-- Detect availability from the local `codex debug models` catalog and use official OpenAI Codex model and changelog pages as supporting evidence. Do not infer local availability from the API catalog alone.
+- Check the configured official OpenAI Codex Models and Changelog pages for release context, then select the highest-priority visible model from the local `codex debug models` catalog. Do not hardcode a model-family name or infer local availability from web pages alone.
 - Launch the candidate author in a fresh `codex exec` session using the highest-priority visible local model and the configured maximum reasoning effort. Launch an independent reviewer in a second fresh session with the same model and effort.
 - Preserve `original.md`, record execution evidence, verify candidate checksums before and after review, and evaluate every enabled case under the instance `evals/` directory.
 - Produce the smallest justified candidate. Reject safety, authorization, stable-intent, or critical-case regressions.
@@ -45,6 +45,6 @@ Never install during an unattended run. Install only after the user explicitly a
 ## Guardrails
 
 - Never modify another user's Gmail, paths, time zone, intent, or personal preferences during setup.
-- Never weaken `auto_install=false`, named-Run approval, SHA validation, backup creation, secret scanning, recipient restriction, or Sent verification without explicit user acknowledgement of the safety impact.
+- Never weaken `auto_install=false`, named-Run approval, SHA validation, backup creation, secret scanning, recipient restriction, Sent verification, or the configured reasoning effort without explicit user acknowledgement of the safety impact.
 - Do not bundle runtime state, reports, runs, backups, email addresses, absolute user paths, credentials, or active `AGENTS.md` content when sharing this skill.
 - Stop after one author pass and one reviewer pass. Persist evidence instead of retrying the same failure without new evidence.

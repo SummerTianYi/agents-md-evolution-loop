@@ -17,7 +17,7 @@
   "require_independent_reviewer": true,
   "max_pending_candidates_per_model": 1,
   "official_sources": [
-    "https://developers.openai.com/api/docs/models",
+    "https://developers.openai.com/codex/models",
     "https://developers.openai.com/codex/changelog"
   ],
   "test_trigger_path": "test-trigger.json",

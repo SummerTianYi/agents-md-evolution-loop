@@ -20,7 +20,7 @@ One package supports Windows and macOS. The audit state machine is shared; `scri
 - Python 3.10+
 - Codex CLI authenticated locally
 - A local global `AGENTS.md`
-- Gmail connector when delivery is enabled
+- A Gmail-capable Codex scheduled task when delivery is enabled
 
 ## Setup
 
@@ -30,13 +30,17 @@ Read [`SKILL.md`](SKILL.md) and [`references/configuration.md`](references/confi
 python scripts/init_instance.py inspect
 ```
 
-Then create the persistent loop after confirming Gmail and preference settings:
+Then create the instance and run a safe onboarding audit after confirming Gmail and preference settings:
 
 ```powershell
-python scripts/bootstrap.py --root <instance-root> --gmail-sender <sender> --gmail-recipient <recipient> --preference-profile neutral --install-schedule --run-once
+python scripts/bootstrap.py --root <instance-root> --gmail-sender <sender> --gmail-recipient <recipient> --preference-profile neutral --run-once
 ```
 
-Use `python3` instead of `python` where that is the local macOS convention. `--run-once` produces a candidate and review but never installs it; the controlling Codex task sends the resulting Gmail report and verifies it in Sent.
+Use `python3` instead of `python` where that is the local macOS convention. `--run-once` produces a candidate and review but never installs it.
+
+For automatic Gmail delivery, create a Codex scheduled task with the generated `<instance-root>/automation-prompt.md`. That task must have access to the configured Gmail connector; it sends only the generated report, verifies Gmail Sent, and records delivery evidence. The package deliberately does not attempt to impersonate Gmail from a generic Python process.
+
+`--install-local-audit-daemon` is optional. It installs a login/startup worker that runs local audits and writes structured `delivery-requests/*.json` files, but it never sends mail or claims delivery. Use it only when a separate Gmail-capable Codex task will consume those requests.
 
 ## Safety
 
