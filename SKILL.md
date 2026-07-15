@@ -1,9 +1,9 @@
 ---
-name: agents-md-evolution
+name: agents-evolve
 description: Initialize and operate a reusable Codex-only loop that detects newly available local Codex models, audits a global AGENTS.md with the newest model at maximum reasoning, independently reviews the candidate, and delivers a Chinese Gmail approval report without unattended installation. Use when setting up, configuring, scheduling, running, approving, installing, or packaging an AGENTS.md evolution loop.
 ---
 
-# AGENTS.md Evolution
+# AGENTS 演进
 
 Keep the reusable skill separate from each user's runtime instance. Never copy bundled example values into a live configuration without presenting them to the user.
 
