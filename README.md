@@ -30,6 +30,8 @@ Read [`SKILL.md`](SKILL.md) and [`references/configuration.md`](references/confi
 python scripts/init_instance.py inspect
 ```
 
+If inspection says the Codex CLI is not logged in, run `codex login` before creating the instance.
+
 Then create the instance and run a safe onboarding audit after confirming Gmail and preference settings:
 
 ```powershell

@@ -42,6 +42,15 @@ class CrossPlatformTests(unittest.TestCase):
         self.assertEqual(environment["PYTHONIOENCODING"], "utf-8")
         self.assertEqual(environment["PYTHONUTF8"], "1")
 
+    def test_login_status_requires_successful_codex_command(self) -> None:
+        logged_in = type("Result", (), {"returncode": 0})()
+        logged_out = type("Result", (), {"returncode": 1})()
+        with patch.object(platform_support.subprocess, "run", return_value=logged_in):
+            self.assertTrue(platform_support.codex_is_authenticated("codex"))
+        with patch.object(platform_support.subprocess, "run", return_value=logged_out):
+            self.assertFalse(platform_support.codex_is_authenticated("codex"))
+        self.assertFalse(platform_support.codex_is_authenticated(None))
+
     def test_timezone_detection_uses_windows_system_label(self) -> None:
         with patch.dict(os.environ, {"TZ": "Asia/Shanghai"}, clear=False):
             value, source = platform_support.detect_timezone()

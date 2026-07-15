@@ -10,7 +10,7 @@ Keep the reusable skill separate from each user's runtime instance. Never copy b
 ## First-time setup and persistent loop
 
 1. Read `references/configuration.md` completely.
-2. Run `python scripts/init_instance.py inspect` to detect the local Codex home, active global `AGENTS.md`, local time zone, Codex executable, and recommended instance root. On macOS, use `python3` when that is the local command.
+2. Run `python scripts/init_instance.py inspect` to detect the local Codex home, active global `AGENTS.md`, local time zone, Codex executable, authenticated CLI status, and recommended instance root. On macOS, use `python3` when that is the local command. Stop and ask the user to complete `codex login` if the CLI is not authenticated.
 3. Present every setting printed by the inspection, including defaults, purpose, safety classification, and whether it came from Michael's author preferences. Do not hide unchanged defaults.
 4. Ask the user to supply or confirm the Gmail sender and recipient. Gmail is the default and currently supported report path; never retain another person's address. Confirm the connected Gmail account before scheduling delivery.
 5. Keep Simplified Chinese reports and the weekday 10:00 and 17:00 schedule as recommended defaults. Detect the host time zone automatically; do not ask the user to enter it unless they explicitly request an override.

@@ -30,6 +30,13 @@ def normalize_executable(value: str) -> str:
     return value
 
 
+def codex_is_authenticated(codex: str | None) -> bool:
+    if not codex:
+        return False
+    result = subprocess.run([codex, "login", "status"], text=True, encoding="utf-8", errors="replace", capture_output=True, check=False)
+    return result.returncode == 0
+
+
 def subprocess_environment() -> dict[str, str]:
     environment = os.environ.copy()
     environment["PYTHONIOENCODING"] = "utf-8"

@@ -11,7 +11,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from platform_support import detect_timezone, find_codex_executable, normalize_executable, platform_name
+from platform_support import codex_is_authenticated, detect_timezone, find_codex_executable, normalize_executable, platform_name
 
 
 SKILL_DIR = Path(__file__).resolve().parents[1]
@@ -34,6 +34,7 @@ def detected_environment() -> dict[str, object]:
         "timezone_source": timezone_source,
         "timezone_requires_confirmation": False,
         "codex_executable": codex,
+        "codex_authenticated": codex_is_authenticated(codex),
     }
 
 
@@ -46,7 +47,7 @@ def print_inspection() -> None:
     print(f"- 活动 AGENTS.md：`{env['active_agents_path']}`（存在：{env['active_agents_exists']}）")
     print(f"- 推荐实例目录：`{env['recommended_instance_root']}`")
     print(f"- 检测时区：`{env['timezone']}`（来源：{env['timezone_source']}）")
-    print(f"- Codex CLI：`{env['codex_executable']}`")
+    print(f"- Codex CLI：`{env['codex_executable']}`（已登录：{env['codex_authenticated']}）")
     print("- Gmail 发件账号：必须由当前使用者填写并核对连接账号")
     print("- Gmail 收件地址：必须由当前使用者填写，不静默假设与发件人相同")
     print("- 报告语言：简体中文（推荐默认，可在同步修改模板后调整）")
@@ -92,6 +93,8 @@ def create_instance(args: argparse.Namespace) -> None:
     codex = args.codex or str(env["codex_executable"] or "")
     if not codex:
         raise SystemExit("Codex CLI was not detected; pass --codex with its executable path")
+    if not env["codex_authenticated"]:
+        raise SystemExit("Codex CLI is not authenticated; run `codex login` before initializing this loop")
     if not active_file.is_file():
         raise SystemExit(f"active AGENTS.md does not exist: {active_file}")
     if root.exists() and any(root.iterdir()):
