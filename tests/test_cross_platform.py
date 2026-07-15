@@ -4,6 +4,7 @@ import importlib.util
 import io
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -239,6 +240,30 @@ class CrossPlatformTests(unittest.TestCase):
             init_instance.print_inspection()
         self.assertIn("默认发送结构化风险与审批建议、完整审计结论", output.getvalue())
         self.assertIn("完整 diff、修改前全文和修改后全文保留在本地 Run 目录", output.getvalue())
+
+    def test_record_automation_marks_instance_manifest_active(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = root / "instance.json"
+            manifest.write_text(json.dumps({"automation_created": False}), encoding="utf-8")
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(ROOT / "scripts" / "record_automation.py"),
+                    "--root",
+                    str(root),
+                    "--automation-id",
+                    "agents-test",
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+            recorded = json.loads(manifest.read_text(encoding="utf-8"))
+            self.assertTrue(recorded["automation_created"])
+            self.assertEqual(recorded["automation_id"], "agents-test")
+            self.assertEqual(recorded["automation_status"], "ACTIVE")
 
     def test_daemon_queues_delivery_request_without_sending(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
