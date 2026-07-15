@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import os
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from email.message import Message
 from pathlib import Path
 from unittest.mock import patch
@@ -230,6 +232,13 @@ class CrossPlatformTests(unittest.TestCase):
         self.assertFalse(delivery["include_full_diff"])
         self.assertFalse(delivery["include_full_original"])
         self.assertFalse(delivery["include_full_candidate"])
+
+    def test_setup_inspection_describes_compact_email_default(self) -> None:
+        output = io.StringIO()
+        with redirect_stdout(output):
+            init_instance.print_inspection()
+        self.assertIn("默认发送结构化风险与审批建议、完整审计结论", output.getvalue())
+        self.assertIn("完整 diff、修改前全文和修改后全文保留在本地 Run 目录", output.getvalue())
 
     def test_daemon_queues_delivery_request_without_sending(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

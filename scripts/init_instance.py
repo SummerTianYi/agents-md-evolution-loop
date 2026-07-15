@@ -53,7 +53,7 @@ def print_inspection() -> None:
     print("- 报告语言：简体中文（推荐默认，可在同步修改模板后调整）")
     print("- 运行时间：工作日 10:00、17:00（推荐默认，可调整）")
     print("- 作者/复核推理强度：max，且必须一致（可明确调整，不可静默降级）")
-    print("- 报告范围：完整审计、完整 diff、修改前全文、修改后全文（Michael 推荐，可调整）")
+    print("- 报告范围：默认发送结构化风险与审批建议、完整审计结论；完整 diff、修改前全文和修改后全文保留在本地 Run 目录，可明确开启邮件投递")
     print("- 偏好配置：neutral 或 michael；选择 michael 前必须逐项说明其个人偏好")
     print("- 安全底线：禁止自动安装、指定 Run ID 审批、SHA 校验、时间戳备份、秘密扫描、Sent 核验")
     print(f"\n完整清单：`{SKILL_DIR / 'references/configuration.md'}`")
