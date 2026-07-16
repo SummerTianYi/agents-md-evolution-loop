@@ -42,7 +42,7 @@ macOS 上若本机惯例为 `python3`，请用 `python3` 替代上面的 `python
 python scripts/bootstrap.py --root <实例目录> --gmail-sender <发件地址> --gmail-recipient <收件地址> --preference-profile neutral --install-local-audit-daemon --run-once
 ```
 
-随后，Codex 会基于生成的 `<实例目录>/automation-prompt.md` 创建一个具备 Gmail 能力的定时任务。该任务是工作日 10:00 与 17:00 检查的唯一所有者；登录入口只做一次启动检查。实例锁会让重叠调用返回 `busy`，避免两个 Run 竞争同一状态。只有 Codex 定时任务可发送报告：它会先在 Gmail“已发送”中按唯一主题和 Run ID 去重，再发送完整 Markdown 正文，并再次核验“已发送”记录。普通 Python 脚本不会模拟或绕过 Gmail 授权。
+随后，Codex 会基于生成的 `<实例目录>/automation-prompt.md` 创建一个具备 Gmail 能力的定时任务。该任务使用本机最轻量可用模型和 `low` 推理强度，只负责日常触发、去重和投递；检测到变化后，脚本才启动最高优先级模型的 `max` 作者与独立复核会话。它是工作日 10:00 与 17:00 检查的唯一所有者；登录入口只做一次启动检查。实例锁会让重叠调用返回 `busy`，避免两个 Run 竞争同一状态。只有 Codex 定时任务可发送报告：它会先在 Gmail“已发送”中按唯一主题和 Run ID 去重，再发送完整 Markdown 正文，并再次核验“已发送”记录。普通 Python 脚本不会模拟或绕过 Gmail 授权。
 
 ## 每次检查会做什么
 

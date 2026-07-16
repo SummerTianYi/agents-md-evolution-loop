@@ -234,6 +234,10 @@ class CrossPlatformTests(unittest.TestCase):
         self.assertFalse(delivery["include_full_original"])
         self.assertFalse(delivery["include_full_candidate"])
 
+    def test_default_routine_check_uses_low_reasoning(self) -> None:
+        config = json.loads((ROOT / "assets" / "instance-template" / "config.json").read_text(encoding="utf-8"))
+        self.assertEqual(config["routine_check_reasoning_effort"], "low")
+
     def test_setup_inspection_describes_compact_email_default(self) -> None:
         output = io.StringIO()
         with redirect_stdout(output):

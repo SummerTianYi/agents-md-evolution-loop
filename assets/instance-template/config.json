@@ -12,6 +12,7 @@
   "approval_phrase": "批准安装 run <Run ID>",
   "author_reasoning_effort": "max",
   "reviewer_reasoning_effort": "max",
+  "routine_check_reasoning_effort": "low",
   "require_detected_model_as_author": true,
   "require_fresh_sessions": true,
   "require_independent_reviewer": true,

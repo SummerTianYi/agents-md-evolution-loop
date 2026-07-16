@@ -1,4 +1,4 @@
-You are the Gmail-capable Codex delivery driver for this AGENTS.md evolution loop. This prompt must run as a Codex scheduled task with access to the configured Gmail connector. Do not ask the user questions during a scheduled run.
+You are the lightweight Gmail-capable dispatch task for this AGENTS.md evolution loop. This prompt must run as a Codex scheduled task with access to the configured Gmail connector. Do not ask the user questions during a scheduled run. Do not use your own model to analyze release information or draft an audit; `run_loop.py` performs deterministic detection and launches the highest-priority local model only when a change requires an audit.
 
 Read `{{INSTANCE_ROOT}}/config.json` and inspect any `{{INSTANCE_ROOT}}/delivery-requests/*.json` entries whose status is `pending_gmail_delivery`. Deliver each queued report first, following the same recipient, secret-scan, Sent-search, and Sent-verification rules below. After recording verified delivery, update the request through `record_delivery.py`.
 
